@@ -1,14 +1,25 @@
-# https://github.com/AncientJames/jtouch
 import netman
+import utime
+import rp2
+import machine
+from machine import Pin
+import time
+import urequests
+
 country = 'SG'
 ssid = ''
 password = ''
 wifi_connection = netman.connectWiFi(ssid,password,country)
 
-import rp2
-import machine
-import time
-import urequests
+led = machine.Pin('LED', machine.Pin.OUT)
+
+led.value(1)
+utime.sleep(1)
+led.value(0)
+utime.sleep(0.4)
+
+led1 = Pin(28,Pin.OUT)
+led1.low()
 
 # Replace these with your Home Assistant details
 url = 'http://192.168.50.88:8123/api/services/light/toggle'
@@ -24,7 +35,6 @@ entity_id = 'light.fd_desk_lamp'
 data = {
     'entity_id': entity_id
 }
-
 
 machine.freq(125_000_000)
 
@@ -130,7 +140,8 @@ class Channel:
             if window > 64:
                 self.level = 1 - ((level - self.level_lo) / window)
                 
-                if self.level > 0.95:  # Assuming a touch event when level is above a threshold (adjust as needed)
+                if self.level > 0.9:  # Assuming a touch event when level is above a threshold (adjust as needed)
+                    led1.high()
                     if self.touch_start_time is None:
                         self.touch_start_time = time.ticks_ms()
                         self.touch_event_printed = False  # Reset the flag when a new touch event starts
@@ -138,6 +149,7 @@ class Channel:
                         touch_duration = time.ticks_diff(time.ticks_ms(), self.touch_start_time)
                         if touch_duration >= 3000 and not self.touch_event_printed:  # Check if touch event lasts for 3 seconds and message is not printed
                             print("Touch event lasting for 3 seconds detected!")
+                            led.value(1)
                             
                             response = urequests.post(url, headers=headers, json=data)
 
@@ -152,6 +164,8 @@ class Channel:
                 else:
                     self.touch_start_time = None
                     self.touch_event_printed = False  # Reset the flag when touch level drops below the threshold
+                    led.value(0)
+                    led1.low()
        
 class Device:
     def __init__(self, pin):
@@ -180,13 +194,16 @@ def main():
         while True:
             touch.update()
             
+            
             print('\r', end='')
             for c in touch.channels:
+                
                 print(f'   {bars[min(len(bars)-1, int(c.level * len(bars)))]}', end='')
                 
             time.sleep(0.01)
 
 if __name__ == '__main__':
     main()
+
 
 
