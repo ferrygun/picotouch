@@ -5,6 +5,25 @@ import machine
 from machine import Pin
 import time
 import urequests
+import ujson
+
+publish_key = 'pub-c-'
+subscribe_key = 'sub-c-'
+
+# define your API endpoint
+pubnub_api_endpoint = f'https://ps.pndsn.com/publish/{publish_key}/{subscribe_key}/0/hello_world/0'
+
+# define your payload
+payload1 = {     
+        "title": "greetings",
+        "description": "mute"
+}
+payload2 = {     
+        "title": "greetings",
+        "description": "unmute"
+}
+
+
 
 country = 'SG'
 ssid = ''
@@ -27,21 +46,6 @@ led_blue.high() #off
 led_red = Pin(28,Pin.OUT, Pin.PULL_DOWN)
 led_red.high() #off
 #led_red.low() #on
-
-# Replace these with your Home Assistant details
-url = 'http://192.168.50.88:8123/api/services/light/toggle'
-headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ..'
-}
-
-# Replace this with your entity_id
-entity_id = 'light.fd_desk_lamp'
-
-# Send the HTTP POST request
-data = {
-    'entity_id': entity_id
-}
 
 machine.freq(125_000_000)
 
@@ -113,6 +117,9 @@ class Channel:
         self.touch_start_time1 = None
         self.touch_event_printed1 = False
         
+        self.counter = 0
+        self.toggle_status = False
+        
         self.level = 0
         self.level_lo = u32max
         self.level_hi = 0
@@ -150,29 +157,6 @@ class Channel:
             if window > 64:
                 self.level = 1 - ((level - self.level_lo) / window)
                 
-                
-                #print(self.level)
-                if self.level > 0.9:
-                    led_blue.low() #on
-                    led_red.high() #off
-                    led_green.high() #off
-                    
-                    
-                elif 0.5 <= self.level <= 0.9:
-                    led_red.low() #on
-                    led_blue.high() #off
-                    led_green.high() #off
-                    
-                    
-                elif 0.0 <= self.level < 0.5:
-                    led_green.low() #on
-                    led_blue.high() #off
-                    led_red.high() #off
-                else:
-                    led_green.high() #off
-                    led_blue.high() #off
-                    led_red.high() #off
-
                 if self.level > 0.5:  # Assuming a touch event when level is above a threshold (adjust as needed)
 
                     self.touch_start_time1 = None
@@ -185,20 +169,53 @@ class Channel:
                         self.touch_event_printed = False  # Reset the flag when a new touch event starts
                     else:
                         touch_duration = time.ticks_diff(time.ticks_ms(), self.touch_start_time)
-                        if touch_duration >= 3000 and not self.touch_event_printed:  # Check if touch event lasts for 3 seconds and message is not printed
+                        if touch_duration >= 1000 and not self.touch_event_printed:  # Check if touch event lasts for 3 seconds and message is not printed
                             print("Touch event lasting for 3 seconds detected!")
                             led.value(1)
+                            led_green.low() #on
+                            led_blue.high() #off
+                            led_red.high() #off
+                    
                             
-                            
+                            self.counter += 1
+                            if self.counter == 2:
+                                print("Explode")
+                                
+                                self.toggle_status = not self.toggle_status
+                                if(self.toggle_status):
+                                    payload = payload1
+                                else:
+                                    payload = payload2
+                                
+                                # convert payload to JSON format
+                                json_payload = ujson.dumps(payload)
+
+                                # make the API call
+                                response = urequests.post(pubnub_api_endpoint, data=json_payload)
+
+                                # check the response
+                                #if response.status_code == 200:
+                                #    print('Message published successfully.')
+                                #    led_blue.low() #on
+                                #    led_red.high() #off
+                                #    led_green.high() #off
+                                #else:
+                                #    print(f'Error publishing message: {response.text}')
+                                
+                                led_green.high() #off
+                                led_blue.high() #off
+                                led_red.high() #off
+
+
                             self.touch_event_printed = True  # Set the flag to indicate that the message has been printed
                             # You can add additional logic or actions here
                 else:
                     self.touch_start_time = None
                     self.touch_event_printed = False  # Reset the flag when touch level drops below the threshold
                     led.value(0)
-                    #led_green.high() #off
-                    #led_blue.high() #off
-                    #led_red.high() #off
+                    led_green.high() #off
+                    led_blue.high() #off
+                    led_red.high() #off
 
                     
                     if self.touch_start_time1 is None:
@@ -206,8 +223,9 @@ class Channel:
                         self.touch_event_printed1 = False  # Reset the flag when a new touch event starts
                     else:
                         touch_duration1 = time.ticks_diff(time.ticks_ms(), self.touch_start_time1)
-                        if touch_duration1 >= 3000 and not self.touch_event_printed1:
+                        if touch_duration1 >= 1000 and not self.touch_event_printed1:
                             print("Not touch event lasting for 3 seconds detected!")
+                            self.counter = 0
 
                             self.touch_event_printed1 = True 
        
@@ -248,3 +266,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
