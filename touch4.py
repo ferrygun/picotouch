@@ -110,6 +110,9 @@ class Channel:
         self.touch_start_time = None
         self.touch_event_printed = False  # New flag to track if the message is printed
         
+        self.touch_start_time1 = None
+        self.touch_event_printed1 = False
+        
         self.level = 0
         self.level_lo = u32max
         self.level_hi = 0
@@ -148,7 +151,7 @@ class Channel:
                 self.level = 1 - ((level - self.level_lo) / window)
                 
                 
-                print(self.level)
+                #print(self.level)
                 if self.level > 0.9:
                     led_blue.low() #on
                     led_red.high() #off
@@ -170,7 +173,7 @@ class Channel:
                     led_blue.high() #off
                     led_red.high() #off
 
-                if self.level > 0.9:  # Assuming a touch event when level is above a threshold (adjust as needed)
+                if self.level > 0.5:  # Assuming a touch event when level is above a threshold (adjust as needed)
 
                     self.touch_start_time1 = None
                     self.touch_event_printed1 = False
@@ -186,14 +189,7 @@ class Channel:
                             print("Touch event lasting for 3 seconds detected!")
                             led.value(1)
                             
-                            response = urequests.post(url, headers=headers, json=data)
-
-                            # Check the response
-                            if response.status_code == 200:
-                                print('Request successful')
-                            else:
-                                print(f'Request failed with status code {response.status_code}: {response.text}')
-                        
+                            
                             self.touch_event_printed = True  # Set the flag to indicate that the message has been printed
                             # You can add additional logic or actions here
                 else:
